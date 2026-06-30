@@ -16,6 +16,7 @@
 #include "memo_store.h"
 #include "assets/lang_config.h"
 #include "display/epd_display.h"
+#include <ssid_manager.h>
 #include <esp_sleep.h>
 #include <driver/gpio.h>
 #include "power_save_timer.h"
@@ -36,6 +37,8 @@
 
 
 static const char *TAG = "XiaoZhi-Card Board";
+static const char *DEFAULT_WIFI_SSID = "S.land";
+static const char *DEFAULT_WIFI_PASSWORD = "Sland0004+";
 
 LV_FONT_DECLARE(font_puhui_16_1);
 LV_FONT_DECLARE(font_awesome_16_4);
@@ -139,6 +142,7 @@ private:
     void InitializeDisplay();        // 显示屏
     void InitializeButtons();        // 按键
     void InitializeIndicator();      // 底座指示灯   
+    void InitializeDefaultWifi();    // 默认 Wi-Fi
     void InitializeTools();          // 
     void InitializePowerSaveTimer(); // 
     void StartUp();                  // 开机 
@@ -400,6 +404,13 @@ void XiaozhiCardBoard::InitializeIndicator()
     SetIndicator(0, 0, 50);
 }
 
+void XiaozhiCardBoard::InitializeDefaultWifi()
+{
+    auto& ssid_manager = SsidManager::GetInstance();
+    ssid_manager.AddSsid(DEFAULT_WIFI_SSID, DEFAULT_WIFI_PASSWORD);
+    ESP_LOGI(TAG, "Default WiFi credential is set: %s", DEFAULT_WIFI_SSID);
+}
+
 void XiaozhiCardBoard::SetIndicator(uint8_t r, uint8_t g, uint8_t b)
 {
     if (led_strip_ != nullptr) {
@@ -467,12 +478,12 @@ bool XiaozhiCardBoard::IsGuidePageRequired(void)
     bool has_flag = (nvs_get_u8(handle, "dont_remind", (uint8_t *)&dont_remind) == ESP_OK);
 
     if (!has_ver || strcmp(stored_ver, current_ver) != 0) {
-        // 版本号不一致或首次运行 → 重置标志
+        // 版本号不一致或首次运行，默认跳过引导页，直接启动网络。
         nvs_set_str(handle, "version", current_ver);
-        nvs_set_u8(handle, "dont_remind", 0);  // 重置为 false
+        nvs_set_u8(handle, "dont_remind", 1);
         nvs_commit(handle);
-        dont_remind = false;
-        ESP_LOGI("GUIDE", "Version changed (%s -> %s), reset flag", stored_ver, current_ver);
+        dont_remind = true;
+        ESP_LOGI("GUIDE", "Version changed (%s -> %s), skip guide page", stored_ver, current_ver);
     }
 
     nvs_close(handle);
@@ -913,9 +924,11 @@ void XiaozhiCardBoard::Disable4G(void)
     xTaskCreate(TaskWrapper::run, "disable_4g_task", 4096, this, 5, NULL);
 }
 
-XiaozhiCardBoard::XiaozhiCardBoard() : DualNetworkBoard(ML307R_PIN_TX, ML307R_PIN_RX, ML307R_PIN_DTR),
+XiaozhiCardBoard::XiaozhiCardBoard() : DualNetworkBoard(ML307R_PIN_TX, ML307R_PIN_RX, ML307R_PIN_DTR, 0),
          user_button_(USER_BUTTON_GPIO, false, 2000, 400) // 双击间隔为 400ms 内 
 {
+    InitializeDefaultWifi();
+
     // Initialize hardware components
     InitializeI2c();
     InitializeCharger();

@@ -446,10 +446,12 @@ esp_err_t Ota::Activate() {
     }
 
     std::string url = GetCheckVersionUrl();
+    // wexiyi runs behind Next.js with trailing slash redirects. esp_http_client
+    // does not follow POST 308 reliably, so call the canonical endpoint.
     if (url.back() != '/') {
-        url += "/activate";
+        url += "/activate/";
     } else {
-        url += "activate";
+        url += "activate/";
     }
 
     auto http = SetupHttp();

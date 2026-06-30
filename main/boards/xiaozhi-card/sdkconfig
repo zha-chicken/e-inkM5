@@ -1083,7 +1083,7 @@ CONFIG_PARTITION_TABLE_MD5=y
 # Xiaozhi Assistant
 #
 # default:
-CONFIG_OTA_URL="https://api.tenclass.net/xiaozhi/ota/"
+CONFIG_OTA_URL="https://wexiyi.com/agents/api/ota/"
 # default:
 CONFIG_LANGUAGE_ZH_CN=y
 # default:

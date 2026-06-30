@@ -8,6 +8,7 @@
 #include "assets/lang_config.h"
 #include <cstring>
 #include "settings.h"
+#include "memo_store.h"
 
 #include "dual_network_board.h"
 #include "board.h"
@@ -786,6 +787,23 @@ static void scr_main_event_cb(lv_event_t * e) {
     }
 }
 
+static void memo_long_press_event_cb(lv_event_t * e) {
+    if (lv_event_get_code(e) != LV_EVENT_LONG_PRESSED) {
+        return;
+    }
+
+    auto* display = static_cast<EpdDisplay*>(lv_event_get_user_data(e));
+    if (display == nullptr) {
+        return;
+    }
+
+    auto& app = Application::GetInstance();
+    app.PlaySound(Lang::Sounds::P3_CLICK);
+
+    auto text = MemoStore::DisplayText();
+    display->ShowMemoList(text.c_str());
+}
+
 /**
  * 开机引导页 
  */
@@ -1166,6 +1184,8 @@ void EpdDisplay::SetupUI() {
     lv_obj_set_flex_flow(content_, LV_FLEX_FLOW_COLUMN); // 垂直布局（从上到下）
     // lv_obj_set_flex_align(content_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_SPACE_EVENLY); // 子对象居中对齐，等距分布
     lv_obj_set_flex_align(content_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
+    lv_obj_add_flag(content_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(content_, memo_long_press_event_cb, LV_EVENT_LONG_PRESSED, this);
 
     emotion_label_ = lv_label_create(content_);
     lv_obj_set_style_text_font(emotion_label_, &font_awesome_30_1, 0);
@@ -1307,6 +1327,8 @@ void EpdDisplay::SetupUI() {
     lv_obj_add_flag(low_battery_popup_, LV_OBJ_FLAG_HIDDEN);
 
     // 添加手势触发回调 
+    lv_obj_add_flag(scr_main_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(scr_main_, memo_long_press_event_cb, LV_EVENT_LONG_PRESSED, this);
     lv_obj_add_event_cb(scr_main_, scr_main_event_cb, LV_EVENT_GESTURE, NULL);
  
 //================================================================
@@ -1639,6 +1661,82 @@ void EpdDisplay::SetPreviewImage(const lv_img_dsc_t* img_dsc) {
             lv_obj_clear_flag(emotion_label_, LV_OBJ_FLAG_HIDDEN);
         }
     }
+}
+
+void EpdDisplay::ShowMemoList(const char* text) {
+    DisplayLockGuard lock(this);
+
+    if (memo_panel_ != nullptr) {
+        lv_obj_delete(memo_panel_);
+        memo_panel_ = nullptr;
+        memo_text_ = nullptr;
+    }
+
+    lv_obj_t* parent = lv_screen_active();
+    memo_panel_ = lv_obj_create(parent);
+    lv_obj_set_size(memo_panel_, width_ - 12, height_ - 18);
+    lv_obj_align(memo_panel_, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_bg_color(memo_panel_, lv_color_white(), 0);
+    lv_obj_set_style_bg_opa(memo_panel_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(memo_panel_, lv_color_black(), 0);
+    lv_obj_set_style_border_width(memo_panel_, 2, 0);
+    lv_obj_set_style_radius(memo_panel_, 2, 0);
+    lv_obj_set_style_pad_all(memo_panel_, 6, 0);
+    lv_obj_set_scroll_dir(memo_panel_, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(memo_panel_, LV_SCROLLBAR_MODE_AUTO);
+
+    lv_obj_t* title = lv_label_create(memo_panel_);
+    lv_obj_set_style_text_font(title, fonts_.text_font, 0);
+    lv_obj_set_style_text_color(title, lv_color_black(), 0);
+    lv_label_set_text(title, "备忘录");
+    lv_obj_align(title, LV_ALIGN_TOP_LEFT, 0, 0);
+
+    lv_obj_t* close_btn = lv_button_create(memo_panel_);
+    lv_obj_remove_style_all(close_btn);
+    lv_obj_set_size(close_btn, 56, 26);
+    lv_obj_align(close_btn, LV_ALIGN_TOP_RIGHT, 0, -3);
+    lv_obj_set_style_border_color(close_btn, lv_color_black(), 0);
+    lv_obj_set_style_border_width(close_btn, 1, 0);
+    lv_obj_add_event_cb(close_btn, [](lv_event_t* e) {
+        auto* display = static_cast<EpdDisplay*>(lv_event_get_user_data(e));
+        if (display != nullptr) {
+            display->HideMemoList();
+        }
+    }, LV_EVENT_CLICKED, this);
+
+    lv_obj_t* close_label = lv_label_create(close_btn);
+    lv_obj_set_style_text_font(close_label, fonts_.text_font, 0);
+    lv_obj_set_style_text_color(close_label, lv_color_black(), 0);
+    lv_label_set_text(close_label, "关闭");
+    lv_obj_center(close_label);
+
+    memo_text_ = lv_label_create(memo_panel_);
+    lv_obj_set_width(memo_text_, width_ - 28);
+    lv_obj_set_style_text_font(memo_text_, fonts_.text_font, 0);
+    lv_obj_set_style_text_color(memo_text_, lv_color_black(), 0);
+    lv_obj_set_style_text_line_space(memo_text_, 4, 0);
+    lv_label_set_long_mode(memo_text_, LV_LABEL_LONG_WRAP);
+    lv_label_set_text(memo_text_, (text != nullptr && text[0] != '\0') ? text : "暂无备忘录");
+    lv_obj_align(memo_text_, LV_ALIGN_TOP_LEFT, 0, 30);
+
+    lv_obj_move_foreground(memo_panel_);
+    lv_obj_invalidate(memo_panel_);
+    lv_refr_now(NULL);
+}
+
+bool EpdDisplay::HideMemoList() {
+    DisplayLockGuard lock(this);
+
+    if (memo_panel_ == nullptr) {
+        return false;
+    }
+
+    lv_obj_delete(memo_panel_);
+    memo_panel_ = nullptr;
+    memo_text_ = nullptr;
+    lv_obj_invalidate(lv_screen_active());
+    lv_refr_now(NULL);
+    return true;
 }
 
 void EpdDisplay::SetTheme(const std::string& theme_name) {

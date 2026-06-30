@@ -37,6 +37,8 @@ protected:
     lv_obj_t* container_ = nullptr;
     lv_obj_t* side_bar_ = nullptr;
     lv_obj_t* preview_image_ = nullptr;
+    lv_obj_t* memo_panel_ = nullptr;
+    lv_obj_t* memo_text_ = nullptr;
 
     const lv_font_t *font_18_ = nullptr;
     const lv_font_t *font_20_ = nullptr;
@@ -64,6 +66,8 @@ public:
     virtual void SetEmotion(const char* emotion) override;
     virtual void SetIcon(const char* icon) override;
     virtual void SetPreviewImage(const lv_img_dsc_t* img_dsc) override;
+    void ShowMemoList(const char* text);
+    bool HideMemoList();
 #if CONFIG_USE_WECHAT_MESSAGE_STYLE
     virtual void SetChatMessage(const char* role, const char* content) override; 
 #endif  

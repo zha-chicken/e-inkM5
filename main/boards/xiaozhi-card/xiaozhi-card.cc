@@ -13,6 +13,7 @@
 #include "driver/spi_common.h"
 #include "driver/sdspi_host.h" 
 #include "mcp_server.h"
+#include "memo_store.h"
 #include "assets/lang_config.h"
 #include "display/epd_display.h"
 #include <esp_sleep.h>
@@ -428,11 +429,22 @@ bool XiaozhiCardBoard::GetPowerSaveMode(void)
 // 物联网初始化，添加对 AI 可见设备
 void XiaozhiCardBoard::InitializeTools() 
 {
-    // TODO:
-    // 切换网络
-    // 重置 Wi-Fi
-    // 底座灯设置
-    // 底座 Grove 口
+    auto& mcp_server = McpServer::GetInstance();
+    mcp_server.AddTool("self.memo.manage",
+        "Manage local memos. action=list/view/create/update/delete/clear/delete_all. clear/delete_all deletes every memo; update/delete require id.",
+        PropertyList({
+            Property("action", kPropertyTypeString, std::string("list")),
+            Property("id", kPropertyTypeInteger, 0, 0, 1000000),
+            Property("title", kPropertyTypeString, std::string("")),
+            Property("content", kPropertyTypeString, std::string(""))
+        }),
+        [](const PropertyList& properties) -> ReturnValue {
+            return MemoStore::HandleMcpAction(
+                properties["action"].value<std::string>(),
+                properties["id"].value<int>(),
+                properties["title"].value<std::string>(),
+                properties["content"].value<std::string>());
+        });
 }
 
 bool XiaozhiCardBoard::IsGuidePageRequired(void) 

@@ -50,6 +50,7 @@ public:
     void DismissAlert();
     void AbortSpeaking(AbortReason reason);
     void ToggleChatState();
+    void EndChat();
     void StartListening();
     void StopListening();
     void Reboot();

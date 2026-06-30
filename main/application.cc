@@ -291,10 +291,27 @@ void Application::ToggleChatState() {
             AbortSpeaking(kAbortReasonNone);
         });
     } else if (device_state_ == kDeviceStateListening) {
-        Schedule([this]() {
-            protocol_->CloseAudioChannel();
-        });
+        EndChat();
     }
+}
+
+void Application::EndChat() {
+    if (device_state_ == kDeviceStateIdle) {
+        return;
+    }
+
+    Schedule([this]() {
+        if (device_state_ == kDeviceStateIdle) {
+            return;
+        }
+        if (device_state_ == kDeviceStateSpeaking) {
+            AbortSpeaking(kAbortReasonNone);
+        }
+        if (protocol_ && protocol_->IsAudioChannelOpened()) {
+            protocol_->CloseAudioChannel();
+        }
+        SetDeviceState(kDeviceStateIdle);
+    });
 }
 
 void Application::StartListening() {

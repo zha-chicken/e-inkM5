@@ -769,6 +769,17 @@ static void scr_main_event_cb(lv_event_t * e) {
                     lv_obj_remove_flag(display->content_, LV_OBJ_FLAG_HIDDEN);
                     lv_obj_add_flag(display->main_btn_new_chat_, LV_OBJ_FLAG_HIDDEN);
                 }
+            } else if (state == kDeviceStateListening || state == kDeviceStateConnecting) {
+                codec->EnableOutput(true);
+                if (display->chat_message_label_ != nullptr) {
+                    lv_label_set_text(display->chat_message_label_, "");
+                }
+                lv_label_set_text(display->main_btn_chat_label_, "对话");
+                lv_obj_remove_flag(display->content_, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(display->main_btn_new_chat_, LV_OBJ_FLAG_HIDDEN);
+                app.EndChat();
+                app.PausePlay(false);
+                pause = false;
             } else {
                 codec->EnableOutput(true);  
                 lv_obj_remove_flag(display->content_, LV_OBJ_FLAG_HIDDEN);

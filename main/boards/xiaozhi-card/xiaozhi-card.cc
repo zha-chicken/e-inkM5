@@ -14,6 +14,7 @@
 #include "driver/sdspi_host.h" 
 #include "mcp_server.h"
 #include "memo_store.h"
+#include "weather_service.h"
 #include "assets/lang_config.h"
 #include "display/epd_display.h"
 #include <ssid_manager.h>
@@ -455,6 +456,26 @@ void XiaozhiCardBoard::InitializeTools()
                 properties["id"].value<int>(),
                 properties["title"].value<std::string>(),
                 properties["content"].value<std::string>());
+        });
+
+    mcp_server.AddTool("self.weather.get_current",
+        "Get current outdoor weather using Open-Meteo. Do not guess weather. "
+        "Pass latitude and longitude when known, or pass a city name in location. "
+        "If ok=false or setup_required is returned, ask the user for a precise location instead of inventing details.",
+        PropertyList({
+            Property("location", kPropertyTypeString, std::string("")),
+            Property("latitude", kPropertyTypeString, std::string("")),
+            Property("longitude", kPropertyTypeString, std::string("")),
+            Property("unit", kPropertyTypeString, std::string("metric")),
+            Property("lang", kPropertyTypeString, std::string("zh"))
+        }),
+        [](const PropertyList& properties) -> ReturnValue {
+            return WeatherService::GetCurrentWeather(
+                properties["location"].value<std::string>(),
+                properties["latitude"].value<std::string>(),
+                properties["longitude"].value<std::string>(),
+                properties["unit"].value<std::string>(),
+                properties["lang"].value<std::string>());
         });
 }
 
